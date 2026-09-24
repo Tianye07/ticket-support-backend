@@ -52,6 +52,36 @@ A Laravel REST API for managing support tickets: you can create, list, filter, v
 
     The API is now available at `http://localhost:8000/api/app/tickets`.
 
+## Running Tests
+
+The feature tests (Pest) call the API endpoints and check the responses and the database. They run against a **separate MySQL database, `ticketsupportdb_test`**, which is wiped and re-migrated for every test.
+
+1. Create the empty test database once, using the same MySQL server and credentials as in `.env`:
+
+    ```sql
+    CREATE DATABASE ticketsupportdb_test;
+    ```
+
+2. Run the tests:
+
+    ```bash
+    composer test
+    ```
+
+    `composer test` clears the config cache first, then runs `php artisan test`.
+
+> **Safety check:** if the configured database name does not end in `_test`, the tests refuse to run. This stops them wiping your real data, e.g. when the config is cached.
+
+What `tests/Feature/TicketApiTest.php` covers:
+
+| Endpoint | Cases |
+| --- | --- |
+| `GET /tickets` | Response format, empty list, filtering by status and priority, partial title search |
+| `POST /tickets` | Creates and saves a ticket, optional description, `422` for missing fields, unsupported priority or status, and values that are too long |
+| `GET /tickets/{id}` | Returns the ticket, `404` with error code `0001` when it doesn't exist |
+| `PUT /tickets/{id}` | Changes status (including reopening a resolved ticket), `422` leaves the ticket unchanged, `404` |
+| `DELETE /tickets/{id}` | Removes the ticket, `404` |
+
 ## Sample Data
 
 `php artisan db:seed` runs `TicketSeeder`, which inserts 12 sample tickets. Together they cover every combination of:
