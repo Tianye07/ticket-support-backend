@@ -1,58 +1,160 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Ticket Support Portal – Backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel REST API for managing support tickets: you can create, list, filter, view, update and delete them.
 
-## About Laravel
+## Requirements
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.3+
+- Composer
+- Node.js & npm
+- MySQL
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Getting Started
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. Install dependencies:
 
-## Learning Laravel
+    ```bash
+    composer install
+    npm install
+    ```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+2. Create the environment file and app key:
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+3. Create an empty MySQL database, then update the database settings in `.env`:
 
-## Agentic Development
+    ```env
+    DB_CONNECTION=ticketsupportdb
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_USERNAME=root
+    DB_PASSWORD=
+    ```
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+    > `DB_CONNECTION` must be `ticketsupportdb`. The migration and controller use this connection name.
+
+4. Run the migration and seed the sample tickets:
+
+    ```bash
+    php artisan migrate
+    php artisan db:seed
+    ```
+
+5. Start the server:
+
+    ```bash
+    php artisan serve
+    ```
+
+    The API is now available at `http://localhost:8000/api/app/tickets`.
+
+## Sample Data
+
+`php artisan db:seed` runs `TicketSeeder`, which inserts 12 sample tickets. Together they cover every combination of:
+
+| Status        | Priority |
+| ------------- | -------- |
+| `open`        | `high`   |
+| `in_progress` | `medium` |
+| `resolved`    | `low`    |
+
+Running the seeder again is safe. Tickets that already exist (same `title` and `requester_name`) are skipped, so no duplicates are created.
+
+To reset the database to only the sample data:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+php artisan migrate:fresh --seed
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## API Endpoints
 
-## Contributing
+Base URL: `http://localhost:8000/api/app`
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Method   | Endpoint        | Description                     |
+| -------- | --------------- | ------------------------------- |
+| `GET`    | `/tickets`      | List tickets (supports filters) |
+| `POST`   | `/tickets`      | Create a ticket                 |
+| `GET`    | `/tickets/{id}` | Get a single ticket             |
+| `PUT`    | `/tickets/{id}` | Update a ticket                 |
+| `DELETE` | `/tickets/{id}` | Delete a ticket                 |
 
-## Code of Conduct
+### Filters (`GET /tickets`)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Each filter is optional, and you can combine them:
 
-## Security Vulnerabilities
+| Query param | Match                          | Example          |
+| ----------- | ------------------------------ | ---------------- |
+| `title`     | Partial match (`LIKE %value%`) | `?title=login`   |
+| `priority`  | Exact match                    | `?priority=high` |
+| `status`    | Exact match                    | `?status=open`   |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Example: `GET /api/app/tickets?status=open&priority=high`
 
-## License
+### Create / Update body
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+| Field            | Rules                                              |
+| ---------------- | -------------------------------------------------- |
+| `title`          | required, string, max 100                          |
+| `description`    | optional, string, max 350                          |
+| `priority`       | required, one of `low`, `medium`, `high`           |
+| `status`         | required, one of `open`, `in_progress`, `resolved` |
+| `requester_name` | required, string, max 100                          |
+
+```bash
+curl -X POST http://localhost:8000/api/app/tickets \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"title":"Cannot reset password","description":"Reset link expired","priority":"high","status":"open","requester_name":"John Doe"}'
+```
+
+### Responses
+
+Success:
+
+```json
+{
+    "code": "0",
+    "success": true,
+    "data": {
+        "id": 1,
+        "title": "Cannot reset password",
+        "description": "Reset link expired",
+        "priority": "high",
+        "status": "open",
+        "requester_name": "John Doe",
+        "createdAt": "2026-09-25T10:00:00.000000Z",
+        "updatedAt": "2026-09-25T10:00:00.000000Z"
+    }
+}
+```
+
+Ticket not found (`404`):
+
+```json
+{
+    "code": "0001",
+    "success": false,
+    "message": "Ticket not found."
+}
+```
+
+Invalid input returns Laravel's standard `422` validation error response.
+
+## How It Works
+
+- **Routes** (`routes/api.php`): every ticket route goes to `TicketController` and is prefixed with `api/app` (set up in `bootstrap/app.php`).
+- **Controller** (`app/Http/Controllers/TicketController.php`):
+    - `index`: builds the query with `when()`, so a filter is applied only when that query param is sent.
+    - `store` / `update`: validate the request, then save inside a database transaction. If anything fails, the transaction is rolled back.
+    - `show` / `update` / `delete`: throw `NotFoundTicketException` when the ticket ID does not exist.
+    - `delete`: removes the ticket inside a transaction.
+- **Allowed values** (`app/Constants/Ticket/`): the valid priorities and statuses are kept as constants, and validation uses them.
+- **Response format**:
+    - `Controller::responseSuccess()` wraps every successful response in the same `code` / `success` / `data` structure.
+    - `TicketResource` controls which ticket fields are returned.
+- **Error handling** (`app/Exceptions/NotFoundTicketException.php`): renders the `404` JSON response. Requests to `api/*` always get JSON errors, not HTML pages.
+- **Seeder** (`database/seeders/TicketSeeder.php`): inserts the sample tickets, skips any that already exist, and prints how many records it created.
